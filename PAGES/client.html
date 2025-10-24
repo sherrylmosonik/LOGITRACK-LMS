@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Customer Tracking | LogiTrack LMS</title>
+  <style>
+    /* ===== LogiTrack Theme ===== */
+    body {
+      font-family: 'Inter', sans-serif;
+      background: linear-gradient(135deg, #1e3c72, #2a5298, #638cd7);
+      color: #fff;
+      margin: 0;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .background-pattern {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: repeating-linear-gradient(0deg, transparent, transparent 50px, #fff 50px, #fff 51px),
+                        repeating-linear-gradient(90deg, transparent, transparent 50px, #fff 50px, #fff 51px);
+      opacity: 0.05;
+      z-index: 0;
+    }
+
+    .container {
+      position: relative;
+      z-index: 1;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 2rem;
+    }
+
+    header {
+      text-align: center;
+      background: rgba(0, 0, 0, 0.2);
+      padding: 1rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      margin-bottom: 2rem;
+    }
+
+    header h1 {
+      letter-spacing: 1px;
+      font-weight: 600;
+    }
+
+    /* ===== Tracking Form ===== */
+    .tracking-section {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 2rem;
+      text-align: center;
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.3);
+      margin-bottom: 2rem;
+    }
+
+    .tracking-section input {
+      width: 60%;
+      padding: 0.8rem;
+      border-radius: 8px;
+      border: none;
+      outline: none;
+      font-size: 1rem;
+      margin-right: 1rem;
+    }
+
+    .tracking-section button {
+      padding: 0.8rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      background: #232991;
+      color: #fff;
+      font-weight: 500;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .tracking-section button:hover {
+      background: #303fc4;
+    }
+
+    /* ===== Results Section ===== */
+    .results {
+      display: none;
+      background: rgba(0, 0, 0, 0.25);
+      padding: 2rem;
+      border-radius: 12px;
+      box-shadow: 0 2px 15px rgba(0, 0, 0, 0.2);
+    }
+
+    .results h2 {
+      text-align: center;
+      color: #fff;
+      margin-bottom: 1rem;
+    }
+
+    .shipment-info {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .info-card {
+      flex: 1;
+      min-width: 250px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 1rem;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .info-card h3 {
+      color: #f5f5f5;
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .info-card p {
+      font-size: 0.95rem;
+      margin: 0;
+      color: #dcdcdc;
+    }
+
+    /* ===== Timeline ===== */
+    .timeline {
+      list-style-type: none;
+      padding-left: 0;
+      border-left: 3px solid #fff;
+      margin: 2rem auto;
+      width: 80%;
+    }
+
+    .timeline li {
+      margin: 1rem 0;
+      padding-left: 1rem;
+      position: relative;
+    }
+
+    .timeline li::before {
+      content: "●";
+      color: #00ffae;
+      position: absolute;
+      left: -12px;
+      font-size: 1.2rem;
+    }
+
+    /* ===== Map Placeholder ===== */
+    .map {
+      width: 100%;
+      height: 300px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.1);
+      text-align: center;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      color: #ddd;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div class="background-pattern"></div>
+
+  <div class="container">
+    <header>
+      <h1>LogiTrack Customer Shipment Tracking</h1>
+      <p>Enter your tracking number to view real-time delivery updates</p>
+    </header>
+
+    <div class="tracking-section">
+      <input type="text" id="trackingNumber" placeholder="Enter your tracking number..." />
+      <button onclick="trackShipment()">Track</button>
+    </div>
+
+    <div class="results" id="resultsSection">
+      <h2>Shipment Details</h2>
+
+      <div class="shipment-info">
+        <div class="info-card">
+          <h3>Tracking Number</h3>
+          <p id="trackID">---</p>
+        </div>
+        <div class="info-card">
+          <h3>Status</h3>
+          <p id="status">---</p>
+        </div>
+        <div class="info-card">
+          <h3>Estimated Delivery</h3>
+          <p id="eta">---</p>
+        </div>
+        <div class="info-card">
+          <h3>Payment Status</h3>
+          <p id="payment">---</p>
+        </div>
+      </div>
+
+      <h2>Shipment Timeline</h2>
+      <ul class="timeline" id="timeline"></ul>
+
+      <h2>Real-Time Location</h2>
+      <div class="map" id="map">
+        [Google Map Placeholder – integrate with Maps API]
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const shipments = [
+      {
+        id: "LT12345",
+        status: "In Transit",
+        eta: "2025-10-27",
+        payment: "Paid via M-Pesa",
+        timeline: ["Shipment Created", "Picked up from Eldoret CBD", "In Transit to Nairobi", "Expected Delivery Soon"],
+      },
+      {
+        id: "LT67890",
+        status: "Delivered",
+        eta: "2025-10-20",
+        payment: "Cash on Delivery (Pending)",
+        timeline: ["Shipment Created", "In Transit", "Delivered Successfully"],
+      },
+    ];
+
+    function trackShipment() {
+      const input = document.getElementById("trackingNumber").value.trim().toUpperCase();
+      const shipment = shipments.find(s => s.id === input);
+
+      const results = document.getElementById("resultsSection");
+      const trackID = document.getElementById("trackID");
+      const status = document.getElementById("status");
+      const eta = document.getElementById("eta");
+      const payment = document.getElementById("payment");
+      const timeline = document.getElementById("timeline");
+
+      if (shipment) {
+        results.style.display = "block";
+        trackID.textContent = shipment.id;
+        status.textContent = shipment.status;
+        eta.textContent = shipment.eta;
+        payment.textContent = shipment.payment;
+
+        timeline.innerHTML = "";
+        shipment.timeline.forEach(step => {
+          timeline.innerHTML += `<li>${step}</li>`;
+        });
+      } else {
+        results.style.display = "block";
+        trackID.textContent = input || "N/A";
+        status.textContent = "Not Found";
+        eta.textContent = "N/A";
+        payment.textContent = "N/A";
+        timeline.innerHTML = "<li>No record found for this tracking number.</li>";
+      }
+    }
+  </script>
+</body>
+</html>
