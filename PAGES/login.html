@@ -74,6 +74,11 @@
             margin-bottom: 5px;
         }
 
+        /* keep logo-text and the whole logo container visually neutral when used as an anchor */
+        .logo-text { color: inherit; text-decoration: none; display: inline-block }
+        .logo-link { color: inherit; text-decoration: none; display: flex; align-items: center; gap: 15px }
+        .logo-link:hover { opacity: 0.95; background-color: #64748b; width: fit-content;  border-radius: 10px; }
+
         .logo-text p {
             font-size: 14px;
             opacity: 0.9;
@@ -376,13 +381,13 @@
     
     <div class="login-wrapper">
         <div class="branding-section">
-            <div class="logo-container">
+            <a class="logo-container logo-link" href="landing.html">
                 <div class="logo-icon">🚛</div>
                 <div class="logo-text">
                     <h1>LogiTrack</h1>
                     <p>Logistics Management System</p>
                 </div>
-            </div>
+            </a>
             
             <div class="features">
                 <div class="feature-item">
@@ -465,6 +470,10 @@
                     
                     <button type="submit">Sign In</button>
 
+                        <div style="margin-top:16px;text-align:center;color:#475569">
+                            Don't have an account? <a href="signup.html" style="color:#2a5298;font-weight:600">Sign up</a>
+                        </div>
+
                     <div class="security-badge">
                     <span class="security-icon">🔒</span>
                     <span>Your connection is secure with end-to-end encryption</span>
@@ -492,24 +501,34 @@
       document.getElementById('loginForm').addEventListener('submit', function(e) {
     e.preventDefault();
 
-    const email = document.getElementById('email').value.trim();
+    const email = document.getElementById('email').value.trim().toLowerCase();
     const password = document.getElementById('password').value.trim();
 
-    // Simple demo validation (replace with real authentication)
-    if (selectedUserType === 'admin' && email === "admin@logitrack.com" && password === "admin123") {
-        alert("Welcome Admin! Redirecting to your dashboard...");
-        window.location.href = "admindash.html";  // Link to your admin dashboard
-    } 
-    else if (selectedUserType === 'personnel' && email === "personnel@logitrack.com" && password === "personnel123") {
-        alert("Redirecting to Personnel Dashboard...");
-        window.location.href = "personnel.html"; // redirect to shipment page
-    } 
-    else if (selectedUserType === 'client' && email === "client@logitrack.com" && password === "client123") {
-        alert("Redirecting to Client Portal...");
-        window.location.href = "client.html"; // redirect to client page
-    } 
-    else {
-        alert("Invalid credentials. Please try again.");
+    // check stored users in localStorage
+    const usersKey = 'logitrack_users';
+    const users = JSON.parse(localStorage.getItem(usersKey) || '[]');
+    const match = users.find(u => u.email && u.email.toLowerCase() === email && u.password === password);
+
+    if (!match) {
+        // if email doesn't exist at all, offer signup
+        const existsEmail = users.some(u => u.email && u.email.toLowerCase() === email);
+        if (!existsEmail) {
+            if (confirm('No account found for this email. Would you like to sign up?')) {
+                window.location.href = 'signup.html';
+            }
+            return;
+        }
+        alert('Invalid credentials. Please try again or reset your password.');
+        return;
+    }
+
+    // successful login — redirect based on selected user type
+    if (selectedUserType === 'admin') {
+        window.location.href = 'admindash.html';
+    } else if (selectedUserType === 'personnel') {
+        window.location.href = 'personnel.html';
+    } else {
+        window.location.href = 'client.html';
     }
 });
 
@@ -519,13 +538,6 @@
             alert('Password reset link would be sent to your registered email address.');
         }
 
-                    // Store login state in memory
-            const loginData = {
-                email: email,
-                timestamp: new Date().toISOString(),
-                isAuthenticated: true
-            };
-            
 
         function handleSupport(e) {
             e.preventDefault();

@@ -305,9 +305,11 @@
           <thead>
             <tr>
               <th>Tracking No.</th>
+              <th>Category</th>
               <th>Origin</th>
               <th>Destination</th>
               <th>Status</th>
+              <th>Payment</th>
               <th>Personnel</th>
               <th>Actions</th>
             </tr>
@@ -328,7 +330,8 @@
       <form id="addForm">
         <div>
           <label>Tracking No.</label>
-          <input type="text" id="newTracking" placeholder="#SHP-2025-0004" required>
+          <input type="text" id="newTracking" disabled style="background: #f8fafc;">
+          <small style="color: #64748b; display: block; margin-top: 4px;">Auto-generated on save</small>
         </div>
         <div>
           <label>Origin</label>
@@ -397,11 +400,80 @@
   </div>
 
   <script>
+    // shared storage key with client portal
+    const STORAGE_KEY = 'logitrack_shipments_v1';
+
+    // initial seed shipments
     let shipments = [
       { tracking: "#SHP-2025-0001", origin: "Eldoret", destination: "Nairobi", status: "in-transit", personnel: "Milly" },
       { tracking: "#SHP-2025-0002", origin: "Eldoret", destination: "Kisumu", status: "pending", personnel: "John" },
       { tracking: "#SHP-2025-0003", origin: "Eldoret", destination: "Mombasa", status: "delivered", personnel: "Faith" },
     ];
+
+    // merge persisted requests (from client) into shipments, avoiding duplicates
+    (function mergeSaved() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (Array.isArray(saved) && saved.length) {
+          const map = new Map();
+          // seed with initial shipments
+          shipments.forEach(s => map.set(s.tracking, s));
+          // overlay saved (client requests) - these may include extra fields like category, eta, payment
+          saved.forEach(s => {
+            if (s.tracking) map.set(s.tracking, Object.assign({}, map.get(s.tracking) || {}, s));
+          });
+          shipments = Array.from(map.values());
+        }
+      } catch (e) {
+        console.error('Failed to load saved shipments', e);
+      }
+    })();
+
+    function saveShipments() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(shipments));
+      } catch (e) {
+        console.error('Failed to save shipments', e);
+      }
+    }
+
+    // listen for external changes (other tab/page) and merge updates
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEY) {
+        try {
+          const saved = JSON.parse(e.newValue || '[]');
+          const map = new Map();
+          shipments.forEach(s => map.set(s.tracking, s));
+          saved.forEach(s => { if (s.tracking) map.set(s.tracking, Object.assign({}, map.get(s.tracking) || {}, s)); });
+          shipments = Array.from(map.values());
+          renderShipments();
+        } catch (err) { console.error('Failed to sync shipments', err); }
+      }
+    });
+
+    // Function to generate the next tracking number
+    function generateNextTrackingNumber() {
+      const prefix = "#SHP-2025-";
+      let maxNumber = 0;
+      
+      // Find the highest number in existing tracking numbers
+      shipments.forEach(s => {
+        const num = parseInt(s.tracking.replace(prefix, ""));
+        if (!isNaN(num) && num > maxNumber) {
+          maxNumber = num;
+        }
+      });
+      
+      // Generate next number with padding
+      const nextNumber = (maxNumber + 1).toString().padStart(4, "0");
+      return `${prefix}${nextNumber}`;
+    }
+
+    // Update tracking number field when modal opens
+    function updateTrackingPreview() {
+      const nextTracking = generateNextTrackingNumber();
+      document.getElementById("newTracking").value = nextTracking;
+    }
 
     let currentEditId = null;
 
@@ -410,10 +482,12 @@
       tbody.innerHTML = data.map(s => `
         <tr>
           <td>${s.tracking}</td>
-          <td>${s.origin}</td>
-          <td>${s.destination}</td>
+          <td>${s.category ? s.category : ''}</td>
+          <td>${s.origin || ''}</td>
+          <td>${s.destination || ''}</td>
           <td><span class="status ${s.status}">${s.status}</span></td>
-          <td>${s.personnel}</td>
+          <td>${s.payment ? s.payment : ''}</td>
+          <td>${s.personnel ? s.personnel : ''}</td>
           <td>
             <button class="btn-secondary" onclick="editShipment('${s.tracking}')">✏️ Edit</button>
           </td>
@@ -433,6 +507,7 @@
 
     function openAddModal() {
       document.getElementById("addModal").style.display = "flex";
+      updateTrackingPreview(); // Show next tracking number
     }
 
     function closeAddModal() {
@@ -441,7 +516,7 @@
     }
 
     function addShipment() {
-      const tracking = document.getElementById("newTracking").value;
+      const tracking = generateNextTrackingNumber(); // Generate new tracking number
       const origin = document.getElementById("newOrigin").value;
       const destination = document.getElementById("newDestination").value;
       const status = document.getElementById("newStatus").value;
@@ -449,7 +524,9 @@
 
       if (!tracking || !origin || !destination) return alert("Please fill all required fields.");
 
-      shipments.push({ tracking, origin, destination, status, personnel });
+      const item = { tracking, origin, destination, status, personnel };
+      shipments.push(item);
+      saveShipments();
       closeAddModal();
       renderShipments();
     }
@@ -479,6 +556,7 @@
         shipment.status = document.getElementById("editStatus").value;
         shipment.personnel = document.getElementById("editPersonnel").value;
       }
+      saveShipments();
       closeEditModal();
       renderShipments();
     }

@@ -5,6 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>LogiTrack Admin Dashboard</title>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
   <style>
     * {
       margin: 0;
@@ -121,7 +123,7 @@
 
     .alerts {
       flex: 1;
-      background: rgba(255,255,255,0.15);
+      background: rgba(4, 11, 111, 0.15);
       backdrop-filter: blur(8px);
       padding: 20px;
       border-radius: 16px;
@@ -131,23 +133,25 @@
     }
 
     .alerts h2 {
-      font-size: 20px;
+      font-size: 18px;
       margin-bottom: 15px;
     }
 
     .alert {
-      background: rgba(255,255,255,0.1);
+      background: rgba(28, 2, 93, 0.1);
       padding: 12px 15px;
       border-radius: 10px;
       margin-bottom: 12px;
       display: flex;
       align-items: center;
       gap: 10px;
+      font-size: 17px;
+
     }
 
     .alert i {
-      color: #ff6961;
-      font-size: 15px;
+      color: #a51109;
+      font-size: 17px;
     }
 
     @media (max-width: 900px) {
@@ -222,39 +226,158 @@
     </section>
   </main>
 
-  <!-- Google Maps API -->
   <script>
+    let map;
+    let deliveryMarkers = [];
+    let deliveryPaths = [];
+    let showingPaths = true;
+
+    // Sample delivery vehicles with their routes
+    const deliveryVehicles = [
+      {
+        id: 'V001',
+        position: [0.52036, 35.26978],
+        destination: [0.53036, 35.28978],
+        status: 'On Route',
+        driver: 'John Doe',
+        eta: '15 mins'
+      },
+      {
+        id: 'V002',
+        position: [0.51036, 35.27978],
+        destination: [0.50036, 35.29978],
+        status: 'Delivering',
+        driver: 'Jane Smith',
+        eta: '25 mins'
+      }
+    ];
+
+    // Initialize the map once the DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      initMap();
+    });
+
     function initMap() {
-      const eldoret = { lat: 0.52036, lng: 35.26978 };
-      const map = new google.maps.Map(document.getElementById("map"), {
-        zoom: 12,
-        center: eldoret,
-        styles: [
-          { elementType: "geometry", stylers: [{ color: "#1e3c72" }] },
-          { elementType: "labels.text.stroke", stylers: [{ color: "#242f3e" }] },
-          { elementType: "labels.text.fill", stylers: [{ color: "#ffffff" }] },
-          {
-            featureType: "road",
-            elementType: "geometry",
-            stylers: [{ color: "#304b8c" }]
-          },
-          {
-            featureType: "water",
-            elementType: "geometry",
-            stylers: [{ color: "#0a244d" }]
-          }
-        ]
+      const eldoret = [0.52036, 35.26978];
+      
+      // Create map with OpenStreetMap
+      map = L.map('map').setView(eldoret, 13);
+      
+      // Add OpenStreetMap tiles
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      // Initialize delivery vehicles
+      deliveryVehicles.forEach(vehicle => {
+        addVehicleToMap(vehicle);
       });
 
-      new google.maps.Marker({
-        position: eldoret,
-        map,
-        title: "Active Shipment Location"
+      // Start vehicle movement simulation
+      setInterval(updateVehiclePositions, 3000);
+    }
+
+    function addVehicleToMap(vehicle) {
+      // Create custom marker icon
+      const truckIcon = L.divIcon({
+        html: '<i class="fa-solid fa-truck" style="color: #FFD369; font-size: 24px;"></i>',
+        className: 'vehicle-marker',
+        iconSize: [24, 24],
+        iconAnchor: [12, 12]
+      });
+
+      // Create marker
+      const marker = L.marker(vehicle.position, {
+        icon: truckIcon,
+        title: `Vehicle ${vehicle.id}`
+      }).addTo(map);
+
+      // Add popup
+      marker.bindPopup(`
+        <div style="padding:5px">
+          <strong>Vehicle ${vehicle.id}</strong><br>
+          Driver: ${vehicle.driver}<br>
+          Status: ${vehicle.status}<br>
+          ETA: ${vehicle.eta}
+        </div>
+      `);
+
+      // Draw route path
+      const path = L.polyline([vehicle.position, vehicle.destination], {
+        color: '#FFD369',
+        opacity: 0.8,
+        weight: 2
+      }).addTo(map);
+
+      deliveryMarkers.push(marker);
+      deliveryPaths.push(path);
+    }
+
+    function updateVehiclePositions() {
+      deliveryMarkers.forEach((marker, i) => {
+        const vehicle = deliveryVehicles[i];
+        const newPos = simulateMovement(vehicle.position);
+        marker.setLatLng(newPos);
+        vehicle.position = newPos;
+        
+        // Update polyline
+        const path = deliveryPaths[i];
+        path.setLatLngs([newPos, vehicle.destination]);
       });
     }
-  </script>
-  <script async
-    src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap">
+
+    function simulateMovement(current) {
+      // Simple random movement for demo
+      const step = 0.00005;
+      return [
+        current[0] + (Math.random() > 0.5 ? step : -step),
+        current[1] + (Math.random() > 0.5 ? step : -step)
+      ];
+    }
+
+    function toggleDeliveryPaths() {
+      showingPaths = !showingPaths;
+      deliveryPaths.forEach(path => {
+        if (showingPaths) {
+          path.addTo(map);
+        } else {
+          path.remove();
+        }
+      });
+    }
+
+    function centerOnVehicles() {
+      const group = new L.featureGroup(deliveryMarkers);
+      map.fitBounds(group.getBounds());
+    }
+
+    function simulateNewDelivery() {
+      const newVehicle = {
+        id: 'V00' + (deliveryVehicles.length + 1),
+        position: [
+          0.52036 + (Math.random() * 0.02 - 0.01),
+          35.26978 + (Math.random() * 0.02 - 0.01)
+        ],
+        destination: [
+          0.52036 + (Math.random() * 0.02 - 0.01),
+          35.26978 + (Math.random() * 0.02 - 0.01)
+        ],
+        status: 'Starting Delivery',
+        driver: 'New Driver ' + (deliveryVehicles.length + 1),
+        eta: Math.floor(Math.random() * 30 + 10) + ' mins'
+      };
+      
+      deliveryVehicles.push(newVehicle);
+      addVehicleToMap(newVehicle);
+
+      // Add alert
+      const alertsContainer = document.querySelector('.alerts');
+      const newAlert = document.createElement('div');
+      newAlert.className = 'alert';
+      newAlert.innerHTML = `<i class="fa-solid fa-truck"></i>New delivery started: Vehicle ${newVehicle.id}`;
+      alertsContainer.insertBefore(newAlert, alertsContainer.firstChild);
+    }
   </script>
 </body>
 </html>
